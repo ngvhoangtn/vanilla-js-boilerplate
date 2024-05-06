@@ -1,162 +1,202 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-    <title>Telegram Mini Apps Vanilla JS Sample App</title>
-    <style>
-        body {
-            --bg-color: var(--tg-theme-bg-color);
-            font: 12px/18px "Lucida Grande", "Lucida Sans Unicode", Arial, Helvetica, Verdana, sans-serif;
-            background-color: var(--bg-color);
-            color: var(--tg-theme-text-color);
-            margin: 48px 24px;
-            padding: 0;
-            color-scheme: var(--tg-color-scheme);
-        }
-
-        a {
-            color: var(--tg-theme-link-color);
-        }
-        #viewport {
-            position: fixed;
-            left: 0;
-            right: 0;
-            top: 0;
-            height: var(--tg-viewport-stable-height, 100vh);
-            pointer-events: none;
-            transition: all .2s ease;
-        }
-        #viewport:after {
-            content: '';
-            display: block;
-            position: absolute;
-            left: 0;
-            right: 0;
-            top: 0;
-            bottom: 0;
-            border-width: 4px;
-            border-style: solid;
-            border-image: linear-gradient(45deg, rgba(64, 224, 208, .5), rgba(173, 255, 47, .5)) 1;
-        }
-
-        #viewport-params-size,
-        #viewport-params-expand {
-            content: attr(text);
-            position: absolute;
-            display: inline-block;
-            background: var(--tg-theme-link-color, rgb(64, 224, 208));
-            right: 4px;
-            left: auto;
-            font-size: 8px;
-            padding: 4px;
-            vertical-align: top;
-        }
-        #viewport-params-size {
-            top: 4px;
-        }
-        #viewport-params-expand {
-            top: 30px;
-        }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Jumping Game</title>
+<style>
+    body {
+        margin: 0;
+        padding: 0;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        background-color: #f0f0f0;
+    }
+    canvas {
+        border: 2px solid black;
+    }
+    #startButton {
+        margin-top: 20px;
+        display: bl
+    }
+</style>
 </head>
-
 <body>
-    <main>
-        <div align="center">
-            <a href="https://ton.org/"><img width="48" src="./assets/tapps.png" alt="logo of telegram web apps"></a>
-        </div>
-        <h1>Modals</h1>
-        <button onclick="Telegram.WebApp.showAlert('Hello World!');">Launch Alert</button>
-        <button onclick="showPopup();">Launch Popup</button>
+<canvas id="gameCanvas" width="130" height="300"></canvas>
+<button id="startButton">Start Game</button>
 
-        <h1>Links</h1>
-        <ul>
-            <li>
-                <a href="javascript:Telegram.WebApp.openTelegramLink('https://t.me/trendingapps');">Open link within Telegram</a>
-            </li>
-            <li>
-                <a href="javascript:Telegram.WebApp.openLink('https://ton.org/');">Open link in external browser</a>
-            </li>
-            <li>
-                <a href="javascript:Telegram.WebApp.openLink('https://telegra.ph/api',{try_instant_view:true});">Open link inside Telegram webview</a>
-            </li>
-        </ul>
+<script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
 
-        <h1>Buttons</h1>
-        <button onclick="Telegram.WebApp.expand();">Expand Webview</button>
-        <button onclick="toggleMainButton();">Toggle Main Button</button>
-    </main>
-    <div id="viewport"></div>
-    <div id="viewport-params-size"></div>
-    <div id="viewport-params-expand"></div>
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <script>
-        // Init TWA
-        Telegram.WebApp.ready();
+    const player = {
+        x: 50,
+        y: canvas.height - 50,
+        width: 30,
+        height: 50,
+        color: 'red',
+        jumping: false,
+        jumpHeight: 100,
+        jumpSpeed: 4, // Adjusted for 0.5 second jump
+        gravity: 3, // Adjusted for 0.4 second fall
+        imageJumping: new Image(),
+        imageStanding: new Image()
+    };
 
-        // Event occurs whenever theme settings are changed in the user's Telegram app (including switching to night mode).
-        Telegram.WebApp.onEvent('themeChanged', function() {
-            document.documentElement.className = Telegram.WebApp.colorScheme;
-        });
+    player.imageJumping.src = 'https://www.mariowiki.com/images/b/b8/SMB_Super_Luigi_Jumping.png';
+    player.imageStanding.src = 'https://www.mariowiki.com/images/archive/b/b7/20200827131242%21SMB_Super_Luigi_Sprite.png';
 
-        // Show main button
-        Telegram.WebApp.MainButton.setParams({
-            text: 'Main Button'
-        });
-        Telegram.WebApp.MainButton.onClick(function () {
-            Telegram.WebApp.showAlert('Main Button was clicked')
-        });	
-        Telegram.WebApp.MainButton.show();
+    const block = {
+        x: 39,
+        y: canvas.height - 170,
+        width: 50,
+        height: 50,
+        color: 'blue'
+    };
 
-        // Function to call showPopup API
-        function showPopup() {
-            Telegram.WebApp.showPopup({
-                title: 'Title',
-                message: 'Some message',
-                buttons: [
-                    {id: 'link', type: 'default', text: 'Open ton.org'},
-                    {type: 'cancel'},
-                ]
-            }, function(btn) {
-                if (btn === 'link') {
-                    Telegram.WebApp.openLink('https://ton.org/');
-                }
-            });
-        };
+    const groundHeight = 20;
 
-        // Function to toggle main TWA button
-        function toggleMainButton() {
-            if (Telegram.WebApp.MainButton.isVisible) {
-                Telegram.WebApp.MainButton.hide();
-            } else {
-                Telegram.WebApp.MainButton.show();
-            }
-        };
+    let score = 0;
+    let gameOver = false;
 
-        function setViewportData() {
-            var sizeEl = document.getElementById('viewport-params-size');
-            sizeEl.innerText = 'width: ' + window.innerWidth + ' x ' + 
-                'height: ' + Telegram.WebApp.viewportStableHeight;
+    function isOnAir() {
+        return player.y < player.startJumpY - player.jumpHeight || !isStandingOnGround();
+    }
 
-            var expandEl = document.querySelector('#viewport-params-expand');
-            expandEl.innerText = 'Is Expanded: ' + (Telegram.WebApp.isExpanded ? 'true' : 'false');
+    function isStandingOnGround() {
+        return player.y >= canvas.height - player.height - groundHeight;
+    }
+
+    function drawPlayer() {
+        ctx.imageSmoothingEnabled = false;
+        if (isOnAir()) {
+            ctx.drawImage(player.imageJumping, player.x, player.y, player.width, player.height);
+        } else {
+            ctx.drawImage(player.imageStanding, player.x, player.y, player.width, player.height);
         }
+        ctx.imageSmoothingEnabled = true;
+    }
 
-        Telegram.WebApp.setHeaderColor('secondary_bg_color');
+    function drawBlock() {
+        ctx.fillStyle = block.color;
+        ctx.fillRect(block.x, block.y, block.width, block.height);
+    }
 
-        setViewportData();
-        Telegram.WebApp.onEvent('viewportChanged', setViewportData);
+    function drawGround() {
+        ctx.fillStyle = 'green';
+        ctx.fillRect(0, canvas.height - groundHeight, canvas.width, groundHeight);
+    }
 
-        Telegram.WebApp.onEvent('themeChanged', function() {
-            document.body.setAttribute('style', '--bg-color:' + Telegram.WebApp.backgroundColor);
-        });
+    function clearCanvas() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
 
-    </script>
+    function drawScore() {
+        ctx.font = '24px Arial';
+        ctx.fillStyle = 'black';
+        ctx.fillText(`Score: ${score}`, 10, 30);
+    }
 
-    <!-- Eruda is console for mobile browsers -->
-    <script src="https://cdn.jsdelivr.net/npm/eruda"></script>
-    <script>eruda.init();</script>
+    function jump() {
+        if (!player.jumping && isStandingOnGround()) {
+            player.jumping = true;
+            player.startJumpY = player.y;
+        }
+    }
+
+    function applyGravity() {
+        if (player.jumping) {
+            if (player.y > player.startJumpY - player.jumpHeight) {
+                player.y -= player.jumpSpeed;
+            } else {
+                player.jumping = false;
+            }
+        } else {
+            if (player.y < canvas.height - player.height - groundHeight) {
+                player.y += player.gravity;
+            } else {
+                player.y = canvas.height - player.height - groundHeight;
+            }
+        }
+    }
+
+    function checkCollision() {
+        // Check if player's hitbox intersects with block's hitbox
+        if (player.x < block.x + block.width &&
+            player.x + player.width > block.x &&
+            player.y < block.y + block.height &&
+            player.y + player.height > block.y) {
+            // Increase the hitbox sensitivity by 3 pixels for both player and block
+            const playerHitbox = {
+                x: player.x - 3,
+                y: player.y - 3,
+                width: player.width + 6,
+                height: player.height + 6
+            };
+            const blockHitbox = {
+                x: block.x - 3,
+                y: block.y - 3,
+                width: block.width + 6,
+                height: block.height + 6
+            };
+
+            // Check if player's hitbox intersects with block's hitbox after sensitivity increase
+            if (playerHitbox.x < blockHitbox.x + blockHitbox.width &&
+                playerHitbox.x + playerHitbox.width > blockHitbox.x &&
+                playerHitbox.y < blockHitbox.y + blockHitbox.height &&
+                playerHitbox.y + playerHitbox.height > blockHitbox.y) {
+
+                // Move the block up a bit
+                block.y -= 5; // Adjust this value as needed
+            }
+            player.jumping = false;
+        }
+    }
+
+    function gameLoop() {
+        if (!gameOver) {
+            clearCanvas();
+            drawPlayer();
+            drawBlock();
+            drawGround();
+            drawScore();
+            checkCollision(); // Check for collision
+            applyGravity();
+            requestAnimationFrame(gameLoop);
+        } else {
+            endGame();
+        }
+    }
+
+    function startGame() {
+        // Reset player and block properties
+        player.width = 30;
+        player.height = 50;
+        block.width = 50;
+        block.height = 50;
+        player.y = canvas.height - 50;
+        block.y = canvas.height - 170;
+        score = 0;
+        gameOver = false;
+
+        // Start the game loop
+        gameLoop();
+    }
+
+    function endGame() {
+        clearCanvas();
+        ctx.font = '36px Arial';
+        ctx.fillStyle = 'black';
+        ctx.textAlign = 'center';
+        ctx.fillText('Game Over', canvas.width / 2, canvas.height / 2 - 20);
+        ctx.font = '24px Arial';
+        ctx.fillText(`Score: ${score}`, canvas.width / 2, canvas.height / 2 + 20);
+    }
+
+    canvas.addEventListener('click', jump);
+    document.getElementById('startButton').addEventListener('click', startGame);
+</script>
 </body>
 </html>
